@@ -220,22 +220,41 @@
   const chapterSelect = document.getElementById('chapter');
   const reciterSelect = document.getElementById('reciter');
 
+  // Server alternatif jika server utama gagal
+  const fallbackServers = ["server8", "server2", "server3", "server4"];
+
+  async function getFastestAudioURL(reciter, chapter) {
+    const controllers = fallbackServers.map(() => new AbortController());
+    const fetchPromises = fallbackServers.map((server, index) => {
+      const url = `https://${server}.mp3quran.net/download/${pad(reciter)}/${pad(chapter)}.mp3`;
+      return fetch(url, { method: 'HEAD', signal: controllers[index].signal })
+        .then(response => {
+          if (response.ok) {
+            controllers.forEach(ctrl => ctrl.abort()); // Batalkan permintaan lain
+            return url;
+          }
+          throw new Error(`Server ${server} tidak tersedia`);
+        });
+    });
+
+    try {
+      return await Promise.any(fetchPromises); // Ambil server tercepat
+    } catch {
+      throw new Error("Semua server gagal dimuat");
+    }
+  }
+
   async function updateAudio() {
     const reciter = reciterSelect.value;
     const chapter = chapterSelect.value;
-    const server = reciterSelect.options[reciterSelect.selectedIndex].dataset.server;
-    const audioURL = `https://${server}.mp3quran.net/download/${reciter}/${chapter}.mp3`;
 
     loadingIndicator.style.display = 'block';
     errorMessage.style.display = 'none';
 
     try {
-      // Cek apakah file tersedia sebelum di-load
-      const response = await fetch(audioURL, { method: 'HEAD' });
-      if (!response.ok) throw new Error('Audio not found');
-
-      audioSource.src = audioURL;
-      audioLink.href = audioURL;
+      const fastestURL = await getFastestAudioURL(reciter, chapter);
+      audioSource.src = fastestURL;
+      audioLink.href = fastestURL;
       audioPlayer.load();
 
       audioPlayer.oncanplay = () => {
@@ -251,17 +270,24 @@
     }
   }
 
+  function pad(number) {
+    return number.toString().padStart(3, '0');
+  }
+
   audioPlayer.onended = () => {
     playNextChapter();
   };
 
   function playNextChapter() {
     let currentIndex = chapterSelect.selectedIndex;
-    if (currentIndex < chapterSelect.options.length - 1) {
+    let totalOptions = chapterSelect.options.length;
+
+    if (currentIndex < totalOptions - 1) {
       chapterSelect.selectedIndex = currentIndex + 1;
     } else {
       chapterSelect.selectedIndex = 0;
     }
+
     updateAudio();
   }
 
@@ -272,6 +298,7 @@
     console.error("Error playing audio");
   };
 </script>
+
 
 </body>
 </html>
