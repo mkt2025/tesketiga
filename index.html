@@ -220,9 +220,7 @@
   const chapterSelect = document.getElementById('chapter');
   const reciterSelect = document.getElementById('reciter');
 
-  // Server alternatif jika server utama gagal
-  const fallbackServers = ["server8", "server2", "server3", "server4"];
-
+  
   async function getFastestAudioURL(reciter, chapter) {
     const controllers = fallbackServers.map(() => new AbortController());
     const fetchPromises = fallbackServers.map((server, index) => {
