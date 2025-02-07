@@ -194,7 +194,7 @@
 
    <h3>Preview:</h3>
 <div class="loading" id="loadingIndicator">
-  <img src="https://i.imgur.com/XZgLL61.gif" alt="Loading...">
+  <img src="https://i.imgur.com/r1vjyKd.gif" alt="Loading...">
 </div>
 <audio id="audioPlayer" controls preload="auto">
   <source id="audioSource" src="" type="audio/mpeg">
@@ -202,13 +202,31 @@
 </audio>
 
 <div class="autoplay-container">
-  <input type="checkbox" id="autoplay" checked>
+  <input type="checkbox" id="autoplay" onchange="toggleAutoplay()" checked>
   <label for="autoplay">Auto Play</label>
 </div>
 
-<h4>Download:</h4>
-<a id="audioLink" href="" download target="_blank">Download Audio</a>
-<p id="errorMessage" style="color:red; display:none;">Audio gagal dimuat. Coba lagi.</p>
+<h3>Download:</h3>
+<ul>
+  <li><a id="audioLink" href="" download>Download Audio</a></li>
+</ul>
+
+<select id="server" onchange="updateAudio()">
+  <option value="https://server7.mp3quran.net/download/">Server 7</option>
+  <option value="https://server11.mp3quran.net/download/">Server 11</option>
+  <option value="https://server6.mp3quran.net/download/">Server 6</option>
+  <option value="https://server8.mp3quran.net/download/" selected>Server 8</option>
+</select>
+
+<select id="reciter" onchange="updateAudio()">
+  <option value="reciter1">Reciter 1</option>
+  <option value="reciter2">Reciter 2</option>
+</select>
+
+<select id="chapter" onchange="updateAudio()">
+  <option value="001">1</option>
+  <option value="002">2</option>
+</select>
 
 <script>
   const audioPlayer = document.getElementById('audioPlayer');
@@ -216,86 +234,55 @@
   const audioLink = document.getElementById('audioLink');
   const autoplayCheckbox = document.getElementById('autoplay');
   const loadingIndicator = document.getElementById('loadingIndicator');
-  const errorMessage = document.getElementById('errorMessage');
   const chapterSelect = document.getElementById('chapter');
-  const reciterSelect = document.getElementById('reciter');
+  const serverSelect = document.getElementById('server');
 
-  
-  async function getFastestAudioURL(reciter, chapter) {
-    const controllers = fallbackServers.map(() => new AbortController());
-    const fetchPromises = fallbackServers.map((server, index) => {
-      const url = `https://${server}.mp3quran.net/download/${pad(reciter)}/${pad(chapter)}.mp3`;
-      return fetch(url, { method: 'HEAD', signal: controllers[index].signal })
-        .then(response => {
-          if (response.ok) {
-            controllers.forEach(ctrl => ctrl.abort()); // Batalkan permintaan lain
-            return url;
-          }
-          throw new Error(`Server ${server} tidak tersedia`);
-        });
-    });
-
-    try {
-      return await Promise.any(fetchPromises); // Ambil server tercepat
-    } catch {
-      throw new Error("Semua server gagal dimuat");
-    }
-  }
-
-  async function updateAudio() {
-    const reciter = reciterSelect.value;
+  function updateAudio() {
+    const serverURL = serverSelect.value;
+    const reciter = document.getElementById('reciter').value;
     const chapter = chapterSelect.value;
+    const audioURL = `${serverURL}${reciter}/${chapter}.mp3`;
 
     loadingIndicator.style.display = 'block';
-    errorMessage.style.display = 'none';
+    audioSource.src = audioURL;
+    audioLink.href = audioURL;
+    audioPlayer.load();
 
-    try {
-      const fastestURL = await getFastestAudioURL(reciter, chapter);
-      audioSource.src = fastestURL;
-      audioLink.href = fastestURL;
-      audioPlayer.load();
-
-      audioPlayer.oncanplay = () => {
-        loadingIndicator.style.display = 'none';
-        if (autoplayCheckbox.checked) {
-          audioPlayer.play().catch(error => console.error("Autoplay failed:", error));
-        }
-      };
-    } catch (error) {
-      loadingIndicator.style.display = 'none';
-      errorMessage.style.display = 'block';
-      console.error("Error loading audio:", error);
+    if (autoplayCheckbox.checked) {
+      audioPlayer.play().catch(error => console.error("Autoplay failed:", error));
     }
   }
 
-  function pad(number) {
-    return number.toString().padStart(3, '0');
+  function toggleAutoplay() {
+    if (autoplayCheckbox.checked) {
+      audioPlayer.play().catch(error => console.error("Autoplay failed:", error));
+    } else {
+      audioPlayer.pause();
+    }
   }
 
-  audioPlayer.onended = () => {
-    playNextChapter();
-  };
+  audioPlayer.addEventListener('waiting', () => loadingIndicator.style.display = 'block');
+  audioPlayer.addEventListener('playing', () => loadingIndicator.style.display = 'none');
+  audioPlayer.addEventListener('canplay', () => loadingIndicator.style.display = 'none');
+
+  audioPlayer.addEventListener('ended', () => {
+    if (autoplayCheckbox.checked) {
+      playNextChapter();
+    }
+  });
 
   function playNextChapter() {
     let currentIndex = chapterSelect.selectedIndex;
     let totalOptions = chapterSelect.options.length;
-
     if (currentIndex < totalOptions - 1) {
       chapterSelect.selectedIndex = currentIndex + 1;
     } else {
       chapterSelect.selectedIndex = 0;
     }
-
     updateAudio();
   }
-
-  // Tangani error pada pemutaran audio
-  audioPlayer.onerror = () => {
-    loadingIndicator.style.display = 'none';
-    errorMessage.style.display = 'block';
-    console.error("Error playing audio");
-  };
 </script>
+
 
 
 </body>
