@@ -1,77 +1,143 @@
-<html>
-  <head>
-    <script
-      type="text/javascript"
-      src="https://www.gstatic.com/charts/loader.js"
-    ></script>
-    <script type="text/javascript">
-      google.charts.load("current", {
-        packages: ["corechart", "bar", "table"],
-      });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quran Audio Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      width: 90%;
+      max-width: 500px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1, h3 { text-align: center; }
+    select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    audio { width: 100%; margin-top: 10px; }
+    .loading { display: none; text-align: center; }
+    .loading img { width: 50px; }
+    .autoplay-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Quran Audio Player</h1>
+    
+    <label for="reciter"><b>Reciter</b></label>
+    <select id="reciter" onchange="updateAudio()">
+      <option value="mtrod" data-server="server8">Abdullah Al Mathrud</option>
+      <option value="a_ahmed" data-server="server11">Abdulaziz alahmad</option>
+      <option value="aloosi" data-server="server6">Abdulrahman Aloosi</option>
+      <option value="basit" data-server="server7">Abdul Basith Abdul Shamad</option>
+      <option value="afs" data-server="server8">Musyari al afasiy</option>
+    </select>
 
-      fetch(
-        "https://script.google.com/macros/s/AKfycbz1teyXYxbb1vz4Hg1BASUNeONHRGHxuJ_NS9sKJM8YajxQ-1UYSh8tQyzqv_6vZkGJ/exec?sheetName=Sheet1",
-        {
-          redirect: "follow",
+    <label for="chapter"><b>Chapter</b></label>
+    <select id="chapter" onchange="updateAudio()">
+      <option value="001">1: Al-Faatiha</option>
+      <option value="002">2: Al-Baqara</option>
+      <option value="003">3: Aal-i-Imraan</option>
+      <option value="018">18: Al-Kahf</option>
+      <option value="036">36: Yaseen</option>
+      <option value="055">55: Ar-Rahmaan</option>
+      <option value="114">114: An-Naas</option>
+    </select>
+
+    <h3>Preview:</h3>
+    <div class="loading" id="loadingIndicator">
+      <img src="https://i.imgur.com/XZgLL61.gif" alt="Loading...">
+    </div>
+    
+    <audio id="audioPlayer" controls preload="metadata">
+      <source id="audioSource" src="" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+
+    <div class="autoplay-container">
+      <input type="checkbox" id="autoplay" checked>
+      <label for="autoplay">Auto Play</label>
+    </div>
+
+    <h4>Download:</h4>
+    <a id="audioLink" href="" download target="_blank">Download Audio</a>
+  </div>
+
+  <script>
+    const audioPlayer = document.getElementById('audioPlayer');
+    const audioSource = document.getElementById('audioSource');
+    const audioLink = document.getElementById('audioLink');
+    const autoplayCheckbox = document.getElementById('autoplay');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const chapterSelect = document.getElementById('chapter');
+    const reciterSelect = document.getElementById('reciter');
+
+    async function updateAudio() {
+      const reciter = reciterSelect.value;
+      const chapter = chapterSelect.value;
+      const server = reciterSelect.options[reciterSelect.selectedIndex].dataset.server;
+      const audioURL = `https://${server}.mp3quran.net/download/${reciter}/${chapter}.mp3`;
+
+      if (sessionStorage.getItem(audioURL)) {
+        setAudio(audioURL);
+      } else {
+        loadingIndicator.style.display = 'block';
+        try {
+          const response = await fetch(audioURL, { method: 'HEAD' });
+          if (response.ok) {
+            sessionStorage.setItem(audioURL, 'cached');
+            setAudio(audioURL);
+          } else {
+            console.error('Audio file not found:', audioURL);
+          }
+        } catch (error) {
+          console.error('Error loading audio:', error);
+        } finally {
+          loadingIndicator.style.display = 'none';
         }
-      )
-        .then((response) => response.text())
-        .then((result) => {
-          sheetData = JSON.parse(result);
-          drawChart(sheetData);
-        })
-        .catch((error) => console.log("error", error));
-
-      function drawChart(chartData) {
-        var data = google.visualization.arrayToDataTable(chartData);
-
-        var options = {
-          chart: {
-            title: "Company Performance",
-            subtitle: "Sales, Expenses, and Profit: 2014-2017",
-          },
-          bars: "horizontal",
-        };
-
-        var chart = new google.charts.Bar(
-          document.getElementById("barchart_material")
-        );
-
-        chart.draw(data, google.charts.Bar.convertOptions(options));
       }
+    }
 
-      fetch(
-        "https://script.google.com/macros/s/AKfycbz1teyXYxbb1vz4Hg1BASUNeONHRGHxuJ_NS9sKJM8YajxQ-1UYSh8tQyzqv_6vZkGJ/exec?sheetName=Sheet2",
-        {
-          redirect: "follow",
+    function setAudio(url) {
+      audioSource.src = url;
+      audioLink.href = url;
+      audioPlayer.load();
+      audioPlayer.oncanplay = () => {
+        loadingIndicator.style.display = 'none';
+        if (autoplayCheckbox.checked) {
+          audioPlayer.play().catch(err => console.error("Autoplay failed:", err));
         }
-      )
-        .then((response) => response.text())
-        .then((result) => {
-          sheetData = JSON.parse(result);
-          drawTable(sheetData);
-        })
-        .catch((error) => console.log("error", error));
+      };
+    }
 
-      function drawTable(chartData) {
-        var data = google.visualization.arrayToDataTable(chartData);
-
-        var options = {
-          showRowNumber: true,
-          width: "80%",
-          height: "90%",
-        };
-
-        var table = new google.visualization.Table(
-          document.getElementById("table_div")
-        );
-
-        table.draw(data, options);
+    audioPlayer.onended = () => {
+      let nextIndex = chapterSelect.selectedIndex + 1;
+      if (nextIndex < chapterSelect.options.length) {
+        chapterSelect.selectedIndex = nextIndex;
+        updateAudio();
       }
-    </script>
-  </head>
-  <body>
-    <div id="barchart_material" style="width: 900px; height: 500px"></div>
-    <div id="table_div" style="margin-top: 40px"></div>
-  </body>
+    };
+  </script>
+</body>
 </html>
